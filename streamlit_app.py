@@ -1,16 +1,6 @@
 import streamlit as st
 
-st.title("🎈 My new app")
-"""
-Streamlit version of the multi-stage PV / FV valuation tool.
-
-Run with:
-    pip install streamlit
-    streamlit run app.py
-
-The valuation functions are identical to the CLI script -- only the
-input()/print() layer is replaced by Streamlit widgets.
-"""
+st.title("FV and PV")
 
 import pandas as pd
 import streamlit as st
