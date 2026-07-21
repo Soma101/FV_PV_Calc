@@ -1,10 +1,5 @@
 import streamlit as st
-
-st.title("FV and PV")
-
 import pandas as pd
-import streamlit as st
-
 
 # ----------------------------------------------------------------------
 # Core valuation  (unchanged from the CLI script -- pure functions)
@@ -85,10 +80,11 @@ for i in range(1, int(n_phases) + 1):
         if not is_last:
             interior_after = (int(n_phases) - 1) - i
             max_len = int(n_periods) - used - interior_after
+            # Allow the user to input freely so we can validate it globally
             length = st.number_input(
-                f"Phase {i} length (1 to {max_len})",
-                min_value=1, max_value=max(max_len, 1),
-                value=min(1, max_len), step=1, key=f"len{i}")
+                f"Phase {i} length (periods)",
+                min_value=1,
+                value=max(1, min(1, max_len)), step=1, key=f"len{i}")
             used += int(length)
             segments.append((str(i), g, int(length)))
         else:
@@ -100,7 +96,7 @@ for i in range(1, int(n_phases) + 1):
                 perpetuity_g = g
                 if rem > 0:
                     segments.append(("T", g, rem))
-                st.caption(f"{rem} discrete period(s) at {g*100:.4g}%, "
+                st.caption(f"{max(rem, 0)} discrete period(s) at {g*100:.4g}%, "
                            f"then grows forever at {g*100:.4g}%.")
             else:  # annuity
                 if rem > 0:
@@ -115,13 +111,27 @@ for i in range(1, int(n_phases) + 1):
 # 5) Discount rate
 r = st.number_input("Discount rate (%)", value=8.0, step=0.5) / 100.0
 
-# ---- validation that widgets can't express on their own ----
+# ----------------------------------------------------------------------
+# Validation Engine (Collects all errors before stopping)
+# ----------------------------------------------------------------------
+errors = []
+
 if is_perpetuity and r <= perpetuity_g:
-    st.error(f"For a growing perpetuity the discount rate must exceed the "
-             f"terminal growth rate ({perpetuity_g*100:.4g}%).")
+    errors.append(f"**Discount Rate Error:** For a growing perpetuity, the discount rate ({r*100:.4g}%) must strictly exceed the terminal growth rate ({perpetuity_g*100:.4g}%).")
+
+if used > int(n_periods):
+    errors.append(f"**Phase Length Error:** The total length of the internal discrete phases ({used} periods) exceeds the total discrete forecast periods available ({int(n_periods)}). Decrease the lengths of your prior phases or increase the total 'N'.")
+
+# Check if there are any errors. If so, display all of them and halt calculation.
+if errors:
+    st.error("### Please correct the following inputs:")
+    for error_msg in errors:
+        st.error(error_msg, icon="🚨")
     st.stop()
 
-# ---- compute ----
+# ----------------------------------------------------------------------
+# Compute & Display (Only runs if all inputs are valid)
+# ----------------------------------------------------------------------
 schedule, cf_last, node_time = build_schedule(cf0, int(start_period), segments)
 
 st.subheader("Cash-flow schedule")
